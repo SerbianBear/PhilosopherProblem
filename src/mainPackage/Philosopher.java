@@ -7,65 +7,49 @@ package mainPackage;
 public class Philosopher extends Thread{
 
 	private long consumptionTime; //sleep time in milliseconds
-	String name;
-	String doneEating;
-	String thinking;
+	String name, done, thinking, status;
 	String eating;
+	Fork rightFork, leftFork;
+	long before, after;
 
 	public Philosopher(long consumptionTime){
 		this.consumptionTime = consumptionTime;
 		name = "Philosopher-" + this.getId();
-		doneEating = name + "has finished eating!";
+		done = name + "has finished eating!";
 		thinking = name + " is thinking.";
 		eating = name + " is eating.";
+		status = thinking;
+		before = System.currentTimeMillis();
 	}
 
-	//THE BULK OF THE LOGIC HAS TO BE DONE HERE, I THINK THIS IS ALL THAT'S LEFT
-	//@override
+	@Override
 	public void run(){
-		int leftFork = -1;
-		int rightFork = -1;
-		int forksHeld = 0;
-
-		for(int i = 0; i < Table.forks.length; i++){
-			System.out.println(thinking);
-			if(Table.forks[i].isAvailable()){
-				synchronized(Table.forks[i]){
-					try {
-						System.out.println(thinking);
-						Table.forks[i].wait();
-						System.out.println("COCK");
-						
-						if(leftFork == -1){leftFork = i;}
-						else{rightFork = i;}
-						Table.forks[i].takeFork();
-						forksHeld ++;
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
-			}
-
-			if(forksHeld == 2){break;}
-		}
-
 		try {
 			consume();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 
-		Table.forks[leftFork].returnFork();
-		Table.forks[rightFork].returnFork();
-
-		Table.forks[leftFork].notify();
-		Table.forks[rightFork].notify();
-
-		System.out.println(doneEating);
+		System.out.println(done);
 	}
 
 	private void consume() throws InterruptedException{
 		System.out.println(eating);
 		Thread.sleep(consumptionTime);
+		setStatus(done);
 	}
+	
+	public void holdForks(Fork fork1, Fork fork2){
+		rightFork = fork1;
+		leftFork = fork2;
+	}
+	
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
 }

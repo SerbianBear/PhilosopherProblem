@@ -33,6 +33,12 @@ public class StartingPoint {
 			
 			table = new Table(numberOfPhilosophers, timeOfPhilosophers);
 		}
-		table.begin();
+		try {
+			table.begin();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		System.exit(0);
 	}
 }

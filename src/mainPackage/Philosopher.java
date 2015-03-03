@@ -1,5 +1,6 @@
 package mainPackage;
 
+import java.util.ArrayList;
 import java.util.Random;
 
 /**
@@ -9,9 +10,9 @@ import java.util.Random;
 public class Philosopher extends Thread{
 
 	protected static Random random = new Random();		
-	private Status status;
+	private ArrayList<Integer> sleepTimes;
 	private int numberOfTimesToEat, philosopherNumber;
-	private String name, done, thinking, eating;
+	private String name, done;
 	private Fork rightFork, leftFork;
 	private long before, after, thinkingTime, eatingTime, remainingConsumptionTime;
 	public static long maximumConsumptionTimePerTurn, minimumConsumptionTimePerTurn, startingConsumptionTime;
@@ -21,11 +22,9 @@ public class Philosopher extends Thread{
 		this.rightFork = rightFork;
 		this.philosopherNumber = philosopherNumber;
 		this.remainingConsumptionTime = startingConsumptionTime;
+		this.sleepTimes = new ArrayList<Integer>();
 		name = "Philosopher-" + this.philosopherNumber;
 		done = name + "has finished eating!";
-		thinking = name + " is thinking.";
-		eating = name + " is eating.";
-		status = Status.RUNNING;
 		numberOfTimesToEat = 0;
 		before = System.currentTimeMillis();
 	}
@@ -33,31 +32,44 @@ public class Philosopher extends Thread{
 	@Override
 	public void run(){
 		while(remainingConsumptionTime > 0){
-			try {
-				Thread.sleep((long)(random.nextFloat()*1000));
-			} catch (InterruptedException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-			synchronized(leftFork){
-				System.out.println(name + " has picked up left Fork");
-				synchronized(rightFork){
-					System.out.println(name + " has picked up right Fork");
-					try {
-						consume();
-						rightFork.notify();
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
+			//			try {
+			//				Thread.sleep((long)(random.nextFloat()*1000));
+			//			} catch (InterruptedException e1) {
+			//				// TODO Auto-generated catch block
+			//				e1.printStackTrace();
+			//			}
+
+			if(!leftFork.takeFork(philosopherNumber)){
+				synchronized(leftFork){
+					try {leftFork.wait();}
+					catch (InterruptedException e1) {e1.printStackTrace();}
+					System.out.println(name + " has picked up left Fork");
 				}
-				leftFork.notify();
-			}	
+			}
+			
+			if(rightFork.takeFork(philosopherNumber)){
+				System.out.println(name + " has picked up right Fork");
+				try {
+					consume();
+					rightFork.dropFork(philosopherNumber);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+
+			}
+			leftFork.dropFork(philosopherNumber);
+			Thread.yield();
+
 		}
+		System.out.println("START==================================================");
 		System.out.println(done);
 		System.out.println(name + " ate " + numberOfTimesToEat + " times.");
 		System.out.println(name + " spent thinking: " + thinkingTime);
 		System.out.println(name + " spent eating: " + eatingTime);
-		status = Status.DONE;
+		for(Integer integer : sleepTimes){
+			System.out.println(name + " ate " + integer.intValue());
+		}
+		System.out.println("END====================================================");
 	}
 
 	private void consume() throws InterruptedException{
@@ -70,7 +82,7 @@ public class Philosopher extends Thread{
 		//set before to current time to measure time spent thinking
 		before = System.currentTimeMillis();
 		long sleepTime = 0;
-	    sleepTime = random.nextInt(((int)maximumConsumptionTimePerTurn - (int)minimumConsumptionTimePerTurn) + 1) + (int)minimumConsumptionTimePerTurn;
+		sleepTime = random.nextInt(((int)maximumConsumptionTimePerTurn - (int)minimumConsumptionTimePerTurn) + 1) + (int)minimumConsumptionTimePerTurn;
 		if(remainingConsumptionTime < sleepTime){
 			sleepTime = remainingConsumptionTime;
 		}
@@ -81,42 +93,36 @@ public class Philosopher extends Thread{
 		eatingTime += difference;
 
 		remainingConsumptionTime -= sleepTime;
+		sleepTimes.add(new Integer((int)sleepTime));
 
-		putForksDown();
 		//reset before to time immediately after stopping eating
 		before = System.currentTimeMillis();
 	}
 
-	public void holdForks(Fork fork1, Fork fork2){
-		rightFork = fork1;
-		leftFork = fork2;
-	}
+	protected static class Fork {
 
-	public void putForksDown(){
-		System.out.println(name + " has put the forks down.");
-	}
+		private boolean inUse;
+		private int forkNumber;
 
-	public String getPhilosopherName(){
-		return name;
-	}
-
-	@Override
-	public boolean equals(Object obj){
-		Philosopher philosopher = null;
-		if(obj instanceof Philosopher){
-			philosopher = (Philosopher)obj;
-		}else{
-			return false;
+		public Fork(int forkNumber){
+			this.forkNumber = forkNumber;
+			System.out.println("Fork " + forkNumber + " has been created!");
 		}
-		
-		if(philosopher.getPhilosopherName().equals(this.getPhilosopherName())){
-			return true;
+
+		public synchronized boolean takeFork (int philosopherNumber){
+			return inUse ? false : (inUse = true);
 		}
-		
-		return false;
-	}
-	
-	public Status getStatus() {
-		return status;
+
+		public synchronized void dropFork (int philosopherNumber){
+			inUse = false;
+			notify();
+		}
+
+		public synchronized void waitFor (int who) {
+			while (!takeFork(who))
+				try {
+					wait();
+				} catch (InterruptedException e) { e.printStackTrace(); }
+		}
 	}
 }

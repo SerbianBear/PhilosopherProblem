@@ -1,7 +1,6 @@
 package mainPackage;
 
-import java.util.Set;
-import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.Random;
 
 /**
  * @since 2/17/2015
@@ -9,60 +8,60 @@ import java.util.concurrent.CopyOnWriteArraySet;
  */
 public class Philosopher extends Thread{
 
+	protected static Random random = new Random();		
+	private Status status;
+	private int numberOfTimesToEat, philosopherNumber;
 	private String name, done, thinking, eating;
 	private Fork rightFork, leftFork;
 	private long before, after, thinkingTime, eatingTime, remainingConsumptionTime;
-	public static long maximumConsumptionTimePerTurn;
-	private final Set<ThreadCompleteListener> listeners = new CopyOnWriteArraySet<ThreadCompleteListener>();
+	public static long maximumConsumptionTimePerTurn, minimumConsumptionTimePerTurn, startingConsumptionTime;
 
-	public Philosopher(long consumptionTime){
-		this.remainingConsumptionTime = consumptionTime;
-		name = "Philosopher-" + this.getId();
+	public Philosopher(int philosopherNumber, Fork leftFork, Fork rightFork){
+		this.leftFork = leftFork;
+		this.rightFork = rightFork;
+		this.philosopherNumber = philosopherNumber;
+		this.remainingConsumptionTime = startingConsumptionTime;
+		name = "Philosopher-" + this.philosopherNumber;
 		done = name + "has finished eating!";
 		thinking = name + " is thinking.";
 		eating = name + " is eating.";
-		System.out.println(name + " has been created!");
+		status = Status.RUNNING;
+		numberOfTimesToEat = 0;
 		before = System.currentTimeMillis();
-	}
-
-
-	public final void addListener(final ThreadCompleteListener listener) {
-		listeners.add(listener);
-	}
-	public final void removeListener(final ThreadCompleteListener listener) {
-		listeners.remove(listener);
-	}
-	private final void notifyListeners() {
-		for (ThreadCompleteListener listener : listeners) {
-			listener.notifyOfThreadComplete(this);
-		}
 	}
 
 	@Override
 	public void run(){
 		while(remainingConsumptionTime > 0){
-
-			if(leftFork == null && rightFork == null){
-				continue;
-			} else {
-				try {
-					System.out.println(eating);
-					consume();
-					System.out.println(thinking);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+			try {
+				Thread.sleep((long)(random.nextFloat()*1000));
+			} catch (InterruptedException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			synchronized(leftFork){
+				System.out.println(name + " has picked up left Fork");
+				synchronized(rightFork){
+					System.out.println(name + " has picked up right Fork");
+					try {
+						consume();
+						rightFork.notify();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
 				}
-			}		
+				leftFork.notify();
+			}	
 		}
 		System.out.println(done);
-		System.out.println(name + "Time spent thinking: " + thinkingTime);
-		System.out.println(name + "Time spent eating: " + eatingTime);
-		notifyListeners();
+		System.out.println(name + " ate " + numberOfTimesToEat + " times.");
+		System.out.println(name + " spent thinking: " + thinkingTime);
+		System.out.println(name + " spent eating: " + eatingTime);
+		status = Status.DONE;
 	}
 
 	private void consume() throws InterruptedException{
-
+		numberOfTimesToEat++;
 		//adds time spent thinking to the thinkingTime long
 		after = System.currentTimeMillis();
 		long difference = after - before; 
@@ -71,11 +70,11 @@ public class Philosopher extends Thread{
 		//set before to current time to measure time spent thinking
 		before = System.currentTimeMillis();
 		long sleepTime = 0;
-		if(remainingConsumptionTime < maximumConsumptionTimePerTurn){
+	    sleepTime = random.nextInt(((int)maximumConsumptionTimePerTurn - (int)minimumConsumptionTimePerTurn) + 1) + (int)minimumConsumptionTimePerTurn;
+		if(remainingConsumptionTime < sleepTime){
 			sleepTime = remainingConsumptionTime;
-		}else {
-			sleepTime = maximumConsumptionTimePerTurn;
 		}
+		System.out.println("The sleeping time is " + sleepTime);
 		Thread.sleep(sleepTime);
 		after = System.currentTimeMillis();
 		difference = after - before; 
@@ -84,7 +83,6 @@ public class Philosopher extends Thread{
 		remainingConsumptionTime -= sleepTime;
 
 		putForksDown();
-		System.out.println("The sleeping time is: " + sleepTime);
 		//reset before to time immediately after stopping eating
 		before = System.currentTimeMillis();
 	}
@@ -95,14 +93,7 @@ public class Philosopher extends Thread{
 	}
 
 	public void putForksDown(){
-		synchronized (Table.forks){
-			Table.forks.add(rightFork);
-			Table.forks.add(leftFork);
-			Table.forks.notify();
-		}
-
-		rightFork = null;
-		leftFork = null;
+		System.out.println(name + " has put the forks down.");
 	}
 
 	public String getPhilosopherName(){
@@ -123,5 +114,9 @@ public class Philosopher extends Thread{
 		}
 		
 		return false;
+	}
+	
+	public Status getStatus() {
+		return status;
 	}
 }

@@ -2,7 +2,23 @@ package mainPackage;
 
 public class Fork {
 	
-	public Fork(){
-		System.out.println("Fork: " + this.hashCode() + " has been created!");
+	private int forkNumber;
+	private boolean isAvailable;
+	
+	public void takeFork(){
+		this.isAvailable = false;
+	}
+	
+	public void putForkDown(){
+		this.isAvailable = true;
+	}
+	
+	public int getForkNumber(){
+		return this.forkNumber;
+	}
+	
+	public Fork(int forkNumber){
+		this.forkNumber = forkNumber;
+		this.isAvailable = true;
 	}
 }
